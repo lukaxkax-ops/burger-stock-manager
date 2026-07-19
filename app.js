@@ -27,7 +27,9 @@ let state = {
     sortProducts: 'name', // 'name' ou 'category'
     theme: 'dark',
     uncheckedShoppingItems: new Set(), // Guarda IDs de produtos desmarcados da lista de compras
-    closingHistory: [] // Histórico de fechamentos salvos
+    closingHistory: [], // Histórico de fechamentos salvos
+    syncPassword: '',
+    syncBinId: ''
 };
 
 // Seletores DOM
@@ -93,6 +95,13 @@ const dom = {
     historyEmptyState: document.getElementById('historyEmptyState'),
     historyList: document.getElementById('historyList'),
     
+    // Sincronização
+    syncPassword: document.getElementById('syncPassword'),
+    btnConnectSync: document.getElementById('btnConnectSync'),
+    syncStatusWrapper: document.getElementById('syncStatusWrapper'),
+    connectedPasswordDisplay: document.getElementById('connectedPasswordDisplay'),
+    btnDisconnectSync: document.getElementById('btnDisconnectSync'),
+    
     // Toast
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toastMessage')
@@ -104,6 +113,7 @@ const dom = {
 document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     loadData();
+    initSync();
     initEventListeners();
     
     // Define a data padrão do fechamento para hoje
@@ -144,6 +154,9 @@ function loadData() {
 function saveData() {
     localStorage.setItem('burguerstock_products', JSON.stringify(state.products));
     localStorage.setItem('burguerstock_history', JSON.stringify(state.closingHistory));
+    if (state.syncBinId) {
+        pushSyncData();
+    }
 }
 
 // Tema Claro/Escuro
@@ -194,6 +207,10 @@ function initEventListeners() {
     dom.exportData.addEventListener('click', exportData);
     dom.importFile.addEventListener('change', importData);
     dom.clearData.addEventListener('click', clearAllData);
+
+    // Sincronização em Nuvem
+    dom.btnConnectSync.addEventListener('click', connectSync);
+    dom.btnDisconnectSync.addEventListener('click', disconnectSync);
 
     // Busca e Filtros - Fechamento
     dom.searchClosing.addEventListener('input', (e) => {
@@ -1288,3 +1305,207 @@ function deleteHistoryEntry(id) {
 // Expor para o escopo global (objeto window)
 window.toggleHistoryDetails = toggleHistoryDetails;
 window.deleteHistoryEntry = deleteHistoryEntry;
+
+// -------------------------------------------------------------
+// Sincronização em Nuvem (ExtendsClass + KeyValue)
+// -------------------------------------------------------------
+const SYNC_APP_KEY = 'tb69ex1u';
+let syncIntervalId = null;
+let isFetchingSync = false;
+
+function initSync() {
+    state.syncPassword = localStorage.getItem('burguerstock_sync_password') || '';
+    state.syncBinId = localStorage.getItem('burguerstock_sync_bin_id') || '';
+    
+    if (state.syncPassword && state.syncBinId) {
+        updateSyncUI();
+        startSyncPolling();
+    }
+}
+
+function updateSyncUI() {
+    if (state.syncBinId && state.syncPassword) {
+        dom.syncStatusWrapper.classList.remove('hidden');
+        dom.connectedPasswordDisplay.textContent = state.syncPassword;
+        dom.syncPassword.value = state.syncPassword;
+        dom.syncPassword.disabled = true;
+        dom.btnConnectSync.textContent = 'Conectado';
+        dom.btnConnectSync.disabled = true;
+    } else {
+        dom.syncStatusWrapper.classList.add('hidden');
+        dom.connectedPasswordDisplay.textContent = '';
+        dom.syncPassword.value = '';
+        dom.syncPassword.disabled = false;
+        dom.btnConnectSync.textContent = 'Conectar e Sincronizar';
+        dom.btnConnectSync.disabled = false;
+    }
+}
+
+async function connectSync() {
+    const password = dom.syncPassword.value.trim().toLowerCase();
+    if (!password) {
+        showToast('Por favor, digite uma senha para sincronizar.');
+        return;
+    }
+
+    dom.btnConnectSync.disabled = true;
+    dom.btnConnectSync.textContent = 'Conectando...';
+
+    try {
+        // 1. Consultar KeyValue para ver se a senha já possui um binId
+        const checkUrl = `https://keyvalue.immanuel.co/api/KeyVal/GetValue/${SYNC_APP_KEY}/${password}`;
+        
+        let binId = null;
+        try {
+            const checkRes = await fetch(checkUrl);
+            const text = await checkRes.text();
+            if (text && text.trim() && text !== 'null' && text !== '""') {
+                binId = text.replace(/^"|"$/g, '').trim();
+            }
+        } catch (e) {
+            console.log('Chave não encontrada ou erro ao buscar mapeamento:', e);
+        }
+
+        if (binId && binId.length === 7) {
+            // Existe! Vamos carregar os dados desse binId
+            state.syncBinId = binId;
+            state.syncPassword = password;
+            localStorage.setItem('burguerstock_sync_bin_id', binId);
+            localStorage.setItem('burguerstock_sync_password', password);
+            
+            showToast('Conectando ao estoque em nuvem existente...');
+            await pullSyncData();
+            updateSyncUI();
+            startSyncPolling();
+            showToast('Estoque sincronizado com sucesso!');
+        } else {
+            // Não existe! Vamos criar um novo binId com os dados locais atuais
+            showToast('Criando um novo estoque em nuvem com esta senha...');
+            
+            const payload = {
+                products: state.products,
+                closingHistory: state.closingHistory
+            };
+            
+            const createUrl = 'https://extendsclass.com/api/json-storage/bin';
+            const createRes = await fetch(createUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            }).then(res => res.json());
+
+            if (createRes && createRes.id) {
+                const newBinId = createRes.id;
+                
+                // Salvar o mapeamento da senha -> binId no KeyValue
+                const saveMapUrl = `https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${SYNC_APP_KEY}/${password}/${newBinId}`;
+                await fetch(saveMapUrl, { method: 'POST' });
+                
+                state.syncBinId = newBinId;
+                state.syncPassword = password;
+                localStorage.setItem('burguerstock_sync_bin_id', newBinId);
+                localStorage.setItem('burguerstock_sync_password', password);
+                
+                updateSyncUI();
+                startSyncPolling();
+                showToast('Novo estoque sincronizado na nuvem!');
+            } else {
+                throw new Error('Falha ao criar o contêiner de armazenamento.');
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        showToast('Erro ao sincronizar. Tente usar outra senha.');
+        updateSyncUI();
+    }
+}
+
+function disconnectSync() {
+    if (syncIntervalId) {
+        clearInterval(syncIntervalId);
+        syncIntervalId = null;
+    }
+    
+    state.syncPassword = '';
+    state.syncBinId = '';
+    localStorage.removeItem('burguerstock_sync_password');
+    localStorage.removeItem('burguerstock_sync_bin_id');
+    
+    updateSyncUI();
+    showToast('Sincronização em nuvem desativada.');
+}
+
+async function pullSyncData() {
+    if (!state.syncBinId || isFetchingSync) return;
+    isFetchingSync = true;
+    
+    try {
+        const url = `https://extendsclass.com/api/json-storage/bin/${state.syncBinId}`;
+        const data = await fetch(url).then(res => res.json());
+        
+        if (data && (data.products || data.closingHistory)) {
+            const localDataStr = JSON.stringify({
+                products: state.products,
+                closingHistory: state.closingHistory
+            });
+            const remoteDataStr = JSON.stringify({
+                products: data.products || [],
+                closingHistory: data.closingHistory || []
+            });
+            
+            // Só sobrescreve se houver mudança e o usuário não estiver digitando
+            if (localDataStr !== remoteDataStr) {
+                const isTyping = document.activeElement && 
+                                 (document.activeElement.tagName === 'INPUT' || 
+                                  document.activeElement.tagName === 'SELECT');
+                
+                if (!isTyping) {
+                    state.products = data.products || [];
+                    state.closingHistory = data.closingHistory || [];
+                    
+                    // Salvar localmente
+                    localStorage.setItem('burguerstock_products', JSON.stringify(state.products));
+                    localStorage.setItem('burguerstock_history', JSON.stringify(state.closingHistory));
+                    
+                    render();
+                    console.log('Dados sincronizados da nuvem com sucesso!');
+                }
+            }
+        }
+    } catch (err) {
+        console.error('Erro ao buscar dados da nuvem:', err);
+    } finally {
+        isFetchingSync = false;
+    }
+}
+
+async function pushSyncData() {
+    if (!state.syncBinId) return;
+    
+    try {
+        const url = `https://extendsclass.com/api/json-storage/bin/${state.syncBinId}`;
+        const payload = {
+            products: state.products,
+            closingHistory: state.closingHistory
+        };
+        
+        await fetch(url, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        console.log('Dados locais enviados para a nuvem.');
+    } catch (err) {
+        console.error('Erro ao enviar dados para a nuvem:', err);
+    }
+}
+
+function startSyncPolling() {
+    if (syncIntervalId) clearInterval(syncIntervalId);
+    // Polling a cada 8 segundos
+    syncIntervalId = setInterval(pullSyncData, 8000);
+}

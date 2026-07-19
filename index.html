@@ -88,7 +88,34 @@
                         Limpar Dados
                     </button>
                 </div>
-                <button id="closeBackupBtn" class="btn-close-panel">Fechar</button>
+                
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+                
+                <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 20px; height: 20px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                    Sincronização em Nuvem (Multi-Dispositivos)
+                </h3>
+                <p>Crie ou digite uma senha única para sincronizar seus dados em tempo real entre o computador e o celular.</p>
+                
+                <div class="sync-form-wrapper" style="display: flex; gap: 0.75rem; align-items: center; margin-top: 1rem; flex-wrap: wrap;">
+                    <input type="text" id="syncPassword" placeholder="Ex: estoque-lucao-123" style="flex-grow: 1; min-width: 200px; padding: 0.5rem 0.75rem; font-size: 0.9rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background-color: var(--bg-app); color: var(--text-primary); font-weight: 600; height: 38px;">
+                    <button id="btnConnectSync" class="btn btn-primary" style="height: 38px; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: 600; padding: 0 1rem; border-radius: var(--radius-md);">
+                        Conectar e Sincronizar
+                    </button>
+                </div>
+                
+                <div id="syncStatusWrapper" class="hidden" style="margin-top: 0.75rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; color: var(--success); font-weight: 600;">
+                    <span class="sync-dot" style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--success); display: inline-block;"></span>
+                    <span>Conectado e sincronizando senha: <span id="connectedPasswordDisplay" style="color: var(--text-primary); text-decoration: underline;"></span></span>
+                    <button id="btnDisconnectSync" style="margin-left: auto; background: none; border: none; color: var(--danger); font-weight: 600; cursor: pointer; text-decoration: underline; font-size: 0.85rem; padding: 0;">Desconectar</button>
+                </div>
+                
+                <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                    <button id="closeBackupBtn" class="btn-close-panel">Fechar</button>
+                </div>
             </div>
         </div>
 
