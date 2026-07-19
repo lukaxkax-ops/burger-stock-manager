@@ -34,6 +34,10 @@ let state = {
 
 // Seletores DOM
 const dom = {
+    menuToggle: document.getElementById('menuToggle'),
+    appSidebar: document.getElementById('appSidebar'),
+    closeSidebarBtn: document.getElementById('closeSidebarBtn'),
+    sidebarOverlay: document.getElementById('sidebarOverlay'),
     themeToggle: document.getElementById('themeToggle'),
     themeIconSun: document.getElementById('themeIconSun'),
     themeIconMoon: document.getElementById('themeIconMoon'),
@@ -191,6 +195,11 @@ function toggleTheme() {
 // Event Listeners
 // -------------------------------------------------------------
 function initEventListeners() {
+    // Menu Lateral (Sidebar)
+    dom.menuToggle.addEventListener('click', openSidebar);
+    dom.closeSidebarBtn.addEventListener('click', closeSidebar);
+    dom.sidebarOverlay.addEventListener('click', closeSidebar);
+
     // Tema
     dom.themeToggle.addEventListener('click', toggleTheme);
 
@@ -198,6 +207,7 @@ function initEventListeners() {
     dom.tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             switchTab(tab.getAttribute('data-tab'));
+            closeSidebar();
         });
     });
 
@@ -1528,4 +1538,14 @@ function startSyncPolling() {
     if (syncIntervalId) clearInterval(syncIntervalId);
     // Polling a cada 8 segundos
     syncIntervalId = setInterval(pullSyncData, 8000);
+}
+
+function openSidebar() {
+    dom.appSidebar.classList.add('active');
+    dom.sidebarOverlay.classList.remove('hidden');
+}
+
+function closeSidebar() {
+    dom.appSidebar.classList.remove('active');
+    dom.sidebarOverlay.classList.add('hidden');
 }
