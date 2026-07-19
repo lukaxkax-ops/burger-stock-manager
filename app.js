@@ -552,6 +552,8 @@ function renderClosingTable() {
                                value="${stock}" 
                                step="any"
                                min="0" 
+                               onfocus="if(this.value === '0') this.value = ''"
+                               onblur="if(this.value === '') { this.value = '0'; updateStock('${p.id}', 0); }"
                                oninput="updateStock('${p.id}', this.value)">
                         <button type="button" class="btn-spin" onclick="changeStockBy('${p.id}', 1)">+</button>
                     </div>
@@ -1081,6 +1083,8 @@ function renderPricesTable() {
                                    step="0.01"
                                    min="0" 
                                    style="width: 120px; padding: 0.4rem 0.6rem; text-align: right; font-weight: 600;"
+                                   onfocus="if(this.value === '0') this.value = ''"
+                                   onblur="if(this.value === '') { this.value = '0'; updateUnitPrice('${p.id}', 0); }"
                                    oninput="updateUnitPrice('${p.id}', this.value)">
                         </div>
                     </td>
