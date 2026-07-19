@@ -1364,7 +1364,8 @@ async function connectSync() {
                 binId = text.replace(/^"|"$/g, '').trim();
             }
         } catch (e) {
-            console.log('Chave não encontrada ou erro ao buscar mapeamento:', e);
+            console.error('Erro no KeyValue:', e);
+            throw new Error(`Falha no pareador de senhas (Immanuel): ${e.message || e}`);
         }
 
         if (binId && binId.length === 7) {
@@ -1375,7 +1376,11 @@ async function connectSync() {
             localStorage.setItem('burguerstock_sync_password', password);
             
             showToast('Conectando ao estoque em nuvem existente...');
-            await pullSyncData();
+            try {
+                await pullSyncData();
+            } catch (e) {
+                throw new Error(`Falha ao baixar dados da nuvem: ${e.message || e}`);
+            }
             updateSyncUI();
             startSyncPolling();
             showToast('Estoque sincronizado com sucesso!');
@@ -1389,24 +1394,34 @@ async function connectSync() {
             };
             
             const createUrl = 'https://extendsclass.com/api/json-storage/bin';
-            const createRes = await fetch(createUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'text/plain'
-                },
-                body: JSON.stringify(payload)
-            }).then(res => res.json());
+            let createRes;
+            try {
+                createRes = await fetch(createUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: JSON.stringify(payload)
+                }).then(res => res.json());
+            } catch (e) {
+                console.error('Erro no ExtendsClass:', e);
+                throw new Error(`Falha no banco de dados (ExtendsClass): ${e.message || e}`);
+            }
 
             if (createRes && createRes.id) {
                 const newBinId = createRes.id;
                 
                 // Salvar o mapeamento da senha -> binId no KeyValue
                 const saveMapUrl = `https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${SYNC_APP_KEY}/${encodedPassword}/${newBinId}`;
-                await fetch(saveMapUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
-                });
+                try {
+                    await fetch(saveMapUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                } catch (e) {
+                    throw new Error(`Falha ao registrar mapeamento da senha: ${e.message || e}`);
+                }
                 
                 state.syncBinId = newBinId;
                 state.syncPassword = password;
@@ -1417,12 +1432,12 @@ async function connectSync() {
                 startSyncPolling();
                 showToast('Novo estoque sincronizado na nuvem!');
             } else {
-                throw new Error('Falha ao criar o contêiner de armazenamento.');
+                throw new Error('Falha ao criar o contêiner de armazenamento (retorno vazio).');
             }
         }
     } catch (err) {
         console.error(err);
-        showToast(`Erro ao sincronizar: ${err.message || 'Falha de conexão'}. Tente novamente.`);
+        showToast(`Erro ao sincronizar: ${err.message || 'Falha de conexão'}`);
         updateSyncUI();
     }
 }
