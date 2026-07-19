@@ -1,5 +1,6 @@
 // =============================================================
 // BurguerStock - Lógica da Aplicação (Vanilla JS)
+// Versão online: https://lukaxkax-ops.github.io/burger-stock-manager/
 // =============================================================
 
 // Mock inicial para demonstração com categorias reais
