@@ -510,7 +510,7 @@ function renderClosingTable() {
     if (filtered.length === 0) {
         dom.closingTableBody.innerHTML = `
             <tr>
-                <td colspan="7" class="text-center" style="padding: 2rem; color: var(--text-secondary);">
+                <td colspan="6" class="text-center" style="padding: 2rem; color: var(--text-secondary);">
                     Nenhum produto ativo encontrado com os filtros atuais.
                 </td>
             </tr>
@@ -521,7 +521,6 @@ function renderClosingTable() {
     dom.closingTableBody.innerHTML = filtered.map(p => {
         const stock = p.currentStock !== undefined ? p.currentStock : 0;
         const missing = Math.max(0, p.minQuantity - stock);
-        const surplus = Math.max(0, stock - p.minQuantity);
         const packs = missing > 0 ? Math.ceil(missing / p.quantityPerPackage) : 0;
         const totalItemsInPacks = packs * p.quantityPerPackage;
 
@@ -560,9 +559,6 @@ function renderClosingTable() {
                 <td data-label="Falta" class="text-center font-tabular metric-missing" data-val="${missing}">
                     ${missing > 0 ? `<span class="pill pill-danger">${formatNumber(missing)} un</span>` : `<span class="pill pill-ok">0 un</span>`}
                 </td>
-                <td data-label="Excedente" class="text-center font-tabular metric-surplus" data-val="${surplus}">
-                    ${surplus > 0 ? `<span class="pill pill-info">+${formatNumber(surplus)} un</span>` : `<span style="color: var(--text-muted);">-</span>`}
-                </td>
                 <td data-label="Pacotes" class="text-center font-tabular metric-packs" data-val="${packs}">
                     ${packs > 0 
                         ? `<span class="pill pill-warning" style="font-weight: 700;">${packs} pct${p.quantityPerPackage > 1 ? ` (${formatNumber(totalItemsInPacks)} un)` : ''}</span>` 
@@ -581,7 +577,6 @@ function updateTableRowMetrics(id) {
 
     const stock = product.currentStock || 0;
     const missing = Math.max(0, product.minQuantity - stock);
-    const surplus = Math.max(0, stock - product.minQuantity);
     const packs = missing > 0 ? Math.ceil(missing / product.quantityPerPackage) : 0;
     const totalItemsInPacks = packs * product.quantityPerPackage;
 
@@ -602,15 +597,6 @@ function updateTableRowMetrics(id) {
         cellMissing.innerHTML = missing > 0 
             ? `<span class="pill pill-danger">${formatNumber(missing)} un</span>` 
             : `<span class="pill pill-ok">0 un</span>`;
-    }
-
-    // Atualiza célula de Excedente
-    const cellSurplus = row.querySelector('.metric-surplus');
-    if (cellSurplus) {
-        cellSurplus.setAttribute('data-val', surplus);
-        cellSurplus.innerHTML = surplus > 0 
-            ? `<span class="pill pill-info">+${formatNumber(surplus)} un</span>` 
-            : `<span style="color: var(--text-muted);">-</span>`;
     }
 
     // Atualiza célula de Pacotes
