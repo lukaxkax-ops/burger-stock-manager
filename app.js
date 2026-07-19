@@ -691,11 +691,12 @@ function renderShoppingList() {
             const stock = p.currentStock || 0;
             const missing = p.minQuantity - stock;
             if (missing > 0) {
-                const packs = Math.ceil(missing / p.quantityPerPackage);
+                const roundedMissing = Math.ceil(missing);
+                const packs = Math.ceil(roundedMissing / p.quantityPerPackage);
                 listItems.push({
                     id: p.id,
                     name: p.name,
-                    missing,
+                    missing: roundedMissing,
                     packs,
                     qtyPerPack: p.quantityPerPackage,
                     category: p.category || 'Mercado'
@@ -799,10 +800,11 @@ function generateTextList() {
             const missing = p.minQuantity - stock;
             // Apenas adiciona se estiver abaixo do mínimo AND estiver selecionado (não desmarcado)
             if (missing > 0 && !state.uncheckedShoppingItems.has(p.id)) {
-                const packs = Math.ceil(missing / p.quantityPerPackage);
+                const roundedMissing = Math.ceil(missing);
+                const packs = Math.ceil(roundedMissing / p.quantityPerPackage);
                 listItems.push({
                     name: p.name,
-                    missing,
+                    missing: roundedMissing,
                     packs,
                     qtyPerPack: p.quantityPerPackage,
                     category: p.category || 'Mercado'
