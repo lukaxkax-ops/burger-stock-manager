@@ -988,9 +988,6 @@ function renderPricesTable() {
 
     let filtered = state.products.filter(p => p.name.toLowerCase().includes(state.searchPrices));
     
-    // Ordenar alfabeticamente
-    filtered.sort((a, b) => a.name.localeCompare(b.name));
-
     if (filtered.length === 0) {
         dom.pricesTableBody.innerHTML = `
             <tr>
@@ -1002,40 +999,69 @@ function renderPricesTable() {
         return;
     }
 
-    dom.pricesTableBody.innerHTML = filtered.map(p => {
-        const catClass = getCategorySlug(p.category);
-        const catName = p.category || 'Mercado';
-        const price = p.unitPrice !== undefined ? p.unitPrice : '';
-        const isActive = p.active !== false;
-        
-        return `
-            <tr data-id="${p.id}" class="${isActive ? '' : 'row-inactive-price'}" style="${isActive ? '' : 'opacity: 0.6;'}">
-                <td data-label="Produto" style="font-weight: 600;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-                        <span>${p.name}</span>
-                        ${isActive ? '' : '<span class="badge-status-inactive" style="font-size: 0.65rem;">Inativo</span>'}
-                    </div>
-                </td>
-                <td data-label="Categoria">
-                    <span class="badge-category ${catClass}">${catName}</span>
-                </td>
-                <td data-label="Preço Unitário" class="text-center">
-                    <div style="display: inline-flex; align-items: center; gap: 0.35rem; position: relative;">
-                        <span style="color: var(--text-muted); font-weight: 600;">R$</span>
-                        <input type="number" 
-                               class="price-input" 
-                               data-id="${p.id}" 
-                               value="${price}" 
-                               placeholder="0,00"
-                               step="0.01"
-                               min="0" 
-                               style="width: 120px; padding: 0.4rem 0.6rem; text-align: right; font-weight: 600;"
-                               oninput="updateUnitPrice('${p.id}', this.value)">
-                    </div>
+    // Agrupar itens filtrados por categoria
+    const groups = {};
+    filtered.forEach(p => {
+        const cat = p.category || 'Mercado';
+        if (!groups[cat]) groups[cat] = [];
+        groups[cat].push(p);
+    });
+
+    // Ordenar nomes de categorias
+    const sortedCategories = Object.keys(groups).sort();
+
+    let htmlContent = '';
+    sortedCategories.forEach(cat => {
+        const catClass = getCategorySlug(cat);
+
+        // Linha divisória/título da categoria
+        htmlContent += `
+            <tr class="price-table-group-header" style="background-color: var(--bg-app); font-weight: 700;">
+                <td colspan="3" style="padding: 0.6rem 1.25rem; border-bottom: 2px solid var(--border-color);">
+                    <span class="badge-category ${catClass}" style="font-size: 0.7rem; padding: 0.15rem 0.5rem;">${cat}</span>
                 </td>
             </tr>
         `;
-    }).join('');
+
+        // Ordenar alfabeticamente os produtos desta categoria
+        groups[cat].sort((a, b) => a.name.localeCompare(b.name));
+
+        // Renderizar produtos da categoria
+        groups[cat].forEach(p => {
+            const price = p.unitPrice !== undefined ? p.unitPrice : '';
+            const isActive = p.active !== false;
+            
+            htmlContent += `
+                <tr data-id="${p.id}" class="${isActive ? '' : 'row-inactive-price'}" style="${isActive ? '' : 'opacity: 0.6;'}">
+                    <td data-label="Produto" style="font-weight: 600; padding-left: 2rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                            <span>${p.name}</span>
+                            ${isActive ? '' : '<span class="badge-status-inactive" style="font-size: 0.65rem;">Inativo</span>'}
+                        </div>
+                    </td>
+                    <td data-label="Categoria">
+                        <span class="badge-category ${catClass}">${cat}</span>
+                    </td>
+                    <td data-label="Preço Unitário" class="text-center">
+                        <div style="display: inline-flex; align-items: center; gap: 0.35rem; position: relative;">
+                            <span style="color: var(--text-muted); font-weight: 600;">R$</span>
+                            <input type="number" 
+                                   class="price-input" 
+                                   data-id="${p.id}" 
+                                   value="${price}" 
+                                   placeholder="0,00"
+                                   step="0.01"
+                                   min="0" 
+                                   style="width: 120px; padding: 0.4rem 0.6rem; text-align: right; font-weight: 600;"
+                                   oninput="updateUnitPrice('${p.id}', this.value)">
+                        </div>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+
+    dom.pricesTableBody.innerHTML = htmlContent;
 }
 
 function updateUnitPrice(id, value) {
