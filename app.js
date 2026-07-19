@@ -1048,3 +1048,13 @@ function updateUnitPrice(id, value) {
     saveData();
     renderStats();
 }
+
+// Expor funções chamadas inline no HTML para o escopo global (objeto window)
+// Isso é necessário porque o bundler de produção do Vite encapsula o script em escopo de módulo
+window.toggleProductActiveState = toggleProductActiveState;
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
+window.changeStockBy = changeStockBy;
+window.updateStock = updateStock;
+window.toggleShoppingItemSelection = toggleShoppingItemSelection;
+window.updateUnitPrice = updateUnitPrice;
