@@ -1348,12 +1348,13 @@ async function connectSync() {
         return;
     }
 
+    const encodedPassword = encodeURIComponent(password);
     dom.btnConnectSync.disabled = true;
     dom.btnConnectSync.textContent = 'Conectando...';
 
     try {
         // 1. Consultar KeyValue para ver se a senha já possui um binId
-        const checkUrl = `https://keyvalue.immanuel.co/api/KeyVal/GetValue/${SYNC_APP_KEY}/${password}`;
+        const checkUrl = `https://keyvalue.immanuel.co/api/KeyVal/GetValue/${SYNC_APP_KEY}/${encodedPassword}`;
         
         let binId = null;
         try {
@@ -1391,7 +1392,7 @@ async function connectSync() {
             const createRes = await fetch(createUrl, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'text/plain'
                 },
                 body: JSON.stringify(payload)
             }).then(res => res.json());
@@ -1400,8 +1401,12 @@ async function connectSync() {
                 const newBinId = createRes.id;
                 
                 // Salvar o mapeamento da senha -> binId no KeyValue
-                const saveMapUrl = `https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${SYNC_APP_KEY}/${password}/${newBinId}`;
-                await fetch(saveMapUrl, { method: 'POST' });
+                const saveMapUrl = `https://keyvalue.immanuel.co/api/KeyVal/UpdateValue/${SYNC_APP_KEY}/${encodedPassword}/${newBinId}`;
+                await fetch(saveMapUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
                 
                 state.syncBinId = newBinId;
                 state.syncPassword = password;
@@ -1417,7 +1422,7 @@ async function connectSync() {
         }
     } catch (err) {
         console.error(err);
-        showToast('Erro ao sincronizar. Tente usar outra senha.');
+        showToast(`Erro ao sincronizar: ${err.message || 'Falha de conexão'}. Tente novamente.`);
         updateSyncUI();
     }
 }
