@@ -1416,8 +1416,8 @@ async function connectSync() {
                 try {
                     await fetch(saveMapUrl, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({})
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'data=1'
                     });
                 } catch (e) {
                     throw new Error(`Falha ao registrar mapeamento da senha: ${e.message || e}`);
