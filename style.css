@@ -590,6 +590,11 @@ body {
     color: var(--danger);
 }
 
+.pill.pill-info {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
 /* Shopping List Card */
 .shopping-list-card {
     background: linear-gradient(135deg, var(--bg-card), rgba(24, 24, 28, 0.95));
