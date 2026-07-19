@@ -26,7 +26,8 @@ let state = {
     sortClosing: 'name', // 'name' ou 'category'
     sortProducts: 'name', // 'name' ou 'category'
     theme: 'dark',
-    uncheckedShoppingItems: new Set() // Guarda IDs de produtos desmarcados da lista de compras
+    uncheckedShoppingItems: new Set(), // Guarda IDs de produtos desmarcados da lista de compras
+    closingHistory: [] // Histórico de fechamentos salvos
 };
 
 // Seletores DOM
@@ -51,6 +52,8 @@ const dom = {
     searchClosing: document.getElementById('searchClosing'),
     filterButtons: document.querySelectorAll('.btn-filter'),
     sortClosing: document.getElementById('sortClosing'),
+    closingDate: document.getElementById('closingDate'),
+    btnSaveClosing: document.getElementById('btnSaveClosing'),
     closingEmptyState: document.getElementById('closingEmptyState'),
     closingTableContainer: document.getElementById('closingTableContainer'),
     closingTableBody: document.getElementById('closingTableBody'),
@@ -85,6 +88,10 @@ const dom = {
     pricesEmptyState: document.getElementById('pricesEmptyState'),
     pricesTableContainer: document.getElementById('pricesTableContainer'),
     pricesTableBody: document.getElementById('pricesTableBody'),
+
+    // Aba Histórico
+    historyEmptyState: document.getElementById('historyEmptyState'),
+    historyList: document.getElementById('historyList'),
     
     // Toast
     toast: document.getElementById('toast'),
@@ -98,6 +105,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTheme();
     loadData();
     initEventListeners();
+    
+    // Define a data padrão do fechamento para hoje
+    if (dom.closingDate) {
+        dom.closingDate.value = new Date().toISOString().split('T')[0];
+    }
+    
     render();
 });
 
@@ -118,10 +131,19 @@ function loadData() {
         state.products = [...MOCK_PRODUCTS];
         saveData();
     }
+
+    // Carrega histórico de fechamentos
+    try {
+        state.closingHistory = JSON.parse(localStorage.getItem('burguerstock_history')) || [];
+    } catch (e) {
+        console.error('Erro ao carregar histórico.', e);
+        state.closingHistory = [];
+    }
 }
 
 function saveData() {
     localStorage.setItem('burguerstock_products', JSON.stringify(state.products));
+    localStorage.setItem('burguerstock_history', JSON.stringify(state.closingHistory));
 }
 
 // Tema Claro/Escuro
@@ -221,6 +243,9 @@ function initEventListeners() {
     // Lista de Compras Ações
     dom.copyListBtn.addEventListener('click', copyShoppingList);
     dom.whatsappListBtn.addEventListener('click', sendWhatsappShoppingList);
+
+    // Salvar Fechamento
+    dom.btnSaveClosing.addEventListener('click', saveCurrentClosing);
 }
 
 // Alternar Abas
@@ -403,6 +428,7 @@ function render() {
     renderProductsList();
     renderShoppingList();
     renderPricesTable();
+    renderHistory();
 }
 
 function renderStats() {
@@ -1100,3 +1126,175 @@ window.changeStockBy = changeStockBy;
 window.updateStock = updateStock;
 window.toggleShoppingItemSelection = toggleShoppingItemSelection;
 window.updateUnitPrice = updateUnitPrice;
+
+// -------------------------------------------------------------
+// Aba Histórico Lógica de Fechamentos
+// -------------------------------------------------------------
+function saveCurrentClosing() {
+    const rawDate = dom.closingDate.value;
+    if (!rawDate) {
+        showToast('Por favor, selecione uma data válida para o fechamento!');
+        return;
+    }
+
+    // Apenas produtos ativos entram no histórico
+    const activeProducts = state.products.filter(p => p.active !== false);
+
+    if (activeProducts.length === 0) {
+        showToast('Nenhum produto cadastrado e ativo para salvar.');
+        return;
+    }
+
+    // Calcula valor total em estoque do momento do fechamento
+    let totalValue = 0;
+    const itemsSnapshot = activeProducts.map(p => {
+        const stock = p.currentStock || 0;
+        const price = p.unitPrice || 0;
+        const missing = Math.max(0, p.minQuantity - stock);
+        const surplus = Math.max(0, stock - p.minQuantity);
+        const packs = missing > 0 ? Math.ceil(missing / p.quantityPerPackage) : 0;
+        const val = stock * price;
+        totalValue += val;
+
+        return {
+            name: p.name,
+            category: p.category || 'Mercado',
+            currentStock: stock,
+            minQuantity: p.minQuantity,
+            missing: Math.ceil(missing), // Salva arredondado!
+            surplus,
+            packs,
+            unitPrice: price,
+            totalValue: val
+        };
+    });
+
+    // Formata a data de AAAA-MM-DD para DD/MM/AAAA
+    const parts = rawDate.split('-');
+    const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+
+    // Cria a entrada de histórico
+    const historyEntry = {
+        id: 'hist_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        rawDate,
+        formattedDate,
+        totalValue,
+        itemsCount: itemsSnapshot.length,
+        items: itemsSnapshot
+    };
+
+    // Salva no histórico (adiciona no início para mostrar os mais recentes primeiro)
+    state.closingHistory.unshift(historyEntry);
+    saveData();
+    renderHistory();
+    showToast(`Fechamento de ${formattedDate} salvo com sucesso!`);
+}
+
+function renderHistory() {
+    if (!dom.historyEmptyState || !dom.historyList) return;
+
+    const total = state.closingHistory.length;
+
+    if (total === 0) {
+        dom.historyEmptyState.classList.remove('hidden');
+        dom.historyList.classList.add('hidden');
+        return;
+    }
+
+    dom.historyEmptyState.classList.add('hidden');
+    dom.historyList.classList.remove('hidden');
+
+    dom.historyList.innerHTML = state.closingHistory.map(h => {
+        const formattedValue = h.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        
+        // Renderizar linhas de detalhes do histórico
+        const rowsHtml = h.items.map(item => {
+            const catClass = getCategorySlug(item.category);
+            const valFormatted = item.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            const priceFormatted = item.unitPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+            
+            return `
+                <tr>
+                    <td data-label="Produto" style="font-weight: 600;">${item.name}</td>
+                    <td data-label="Categoria">
+                        <span class="badge-category ${catClass}">${item.category}</span>
+                    </td>
+                    <td data-label="Estoque" class="text-center font-tabular">${formatNumber(item.currentStock)} un</td>
+                    <td data-label="Mínimo" class="text-center font-tabular">${formatNumber(item.minQuantity)} un</td>
+                    <td data-label="Falta" class="text-center font-tabular">
+                        ${item.missing > 0 ? `<span class="pill pill-danger" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">${formatNumber(item.missing)} un</span>` : `<span class="pill pill-ok" style="font-size: 0.7rem; padding: 0.1rem 0.4rem;">0 un</span>`}
+                    </td>
+                    <td data-label="Preço Unit." class="text-center font-tabular">${priceFormatted}</td>
+                    <td data-label="Valor Total" class="text-center font-tabular" style="font-weight: 700; color: var(--success);">${valFormatted}</td>
+                </tr>
+            `;
+        }).join('');
+
+        return `
+            <div class="card history-card" data-id="${h.id}" style="display: flex; flex-direction: column; gap: 1rem; border-left: 4px solid var(--success); transition: all var(--transition-fast);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary);">Fechamento do dia ${h.formattedDate}</h3>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.825rem; color: var(--text-secondary);">${h.itemsCount} itens registrados</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.75rem; color: var(--text-muted); display: block; font-weight: 600; letter-spacing: 0.5px;">VALOR EM ESTOQUE</span>
+                            <span style="font-size: 1.2rem; font-weight: 800; color: var(--success);">${formattedValue}</span>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button type="button" class="btn btn-secondary" onclick="toggleHistoryDetails('${h.id}')" style="padding: 0.45rem 0.85rem; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.35rem; border-radius: var(--radius-md);">
+                                👁️ Detalhes
+                            </button>
+                            <button type="button" class="btn btn-danger" onclick="deleteHistoryEntry('${h.id}')" style="padding: 0.45rem 0.65rem; font-size: 0.8rem; border-radius: var(--radius-md); display: inline-flex; align-items: center; justify-content: center;">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Área expandível de detalhes -->
+                <div id="history-detail-${h.id}" class="hidden" style="margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                    <div class="table-responsive">
+                        <table class="app-table" style="font-size: 0.8rem;">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Categoria</th>
+                                    <th class="text-center">Estoque</th>
+                                    <th class="text-center">Mínimo</th>
+                                    <th class="text-center">Falta</th>
+                                    <th class="text-center">Preço Unit.</th>
+                                    <th class="text-center">Valor Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleHistoryDetails(id) {
+    const detailPanel = document.getElementById(`history-detail-${id}`);
+    if (detailPanel) {
+        detailPanel.classList.toggle('hidden');
+    }
+}
+
+function deleteHistoryEntry(id) {
+    if (confirm('Tem certeza que deseja excluir permanentemente este fechamento do histórico?')) {
+        state.closingHistory = state.closingHistory.filter(h => h.id !== id);
+        saveData();
+        renderHistory();
+        showToast('Fechamento removido do histórico.');
+    }
+}
+
+// Expor para o escopo global (objeto window)
+window.toggleHistoryDetails = toggleHistoryDetails;
+window.deleteHistoryEntry = deleteHistoryEntry;
