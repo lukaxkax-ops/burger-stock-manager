@@ -1336,6 +1336,137 @@ input:focus, select:focus {
         left: 1rem;
         justify-content: center;
     }
+
+    /* Compact closing table elements on Mobile */
+    #closingTableBody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.35rem 1rem;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    #closingTableBody tr td {
+        display: block;
+        padding: 0;
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+    }
+    
+    #closingTableBody tr td::before {
+        display: none !important;
+    }
+    
+    /* Coluna do Produto */
+    #closingTableBody tr td:nth-child(1) {
+        grid-column: 1;
+        grid-row: 1;
+        align-self: center;
+    }
+    
+    /* Coluna do Estoque Atual */
+    #closingTableBody tr td:nth-child(4) {
+        grid-column: 2;
+        grid-row: 1;
+        display: flex;
+        justify-content: flex-end;
+        align-self: center;
+    }
+    
+    /* Coluna Falta */
+    #closingTableBody tr td:nth-child(5) {
+        grid-column: 1;
+        grid-row: 2;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    #closingTableBody tr td:nth-child(5)::before {
+        display: inline-block !important;
+        content: "Falta:" !important;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: none;
+        color: var(--text-secondary);
+    }
+    
+    /* Coluna Pacotes */
+    #closingTableBody tr td:nth-child(6) {
+        grid-column: 2;
+        grid-row: 2;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.35rem;
+    }
+    #closingTableBody tr td:nth-child(6)::before {
+        display: inline-block !important;
+        content: "Comprar:" !important;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: none;
+        color: var(--text-secondary);
+    }
+
+    /* Compact Prices Table on Mobile */
+    #pricesTableBody tr:not(.price-table-group-header) {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.5rem;
+        padding: 0.65rem 0.85rem;
+        align-items: center;
+        margin-bottom: 0.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+    body.light-theme #pricesTableBody tr:not(.price-table-group-header) {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    }
+
+    #pricesTableBody tr td {
+        display: block;
+        padding: 0;
+        border: none;
+        background: transparent;
+    }
+
+    #pricesTableBody tr td::before {
+        display: none !important;
+    }
+
+    #pricesTableBody tr td:nth-child(2) {
+        display: none !important;
+    }
+
+    #pricesTableBody tr td:nth-child(1) {
+        grid-column: 1;
+        padding-left: 0 !important;
+    }
+
+    #pricesTableBody tr td:nth-child(3) {
+        grid-column: 2;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Compact Product Items List on Mobile */
+    .product-item {
+        padding: 0.65rem 0.85rem;
+    }
+    
+    .product-item-details h4 {
+        font-size: 0.95rem;
+    }
+    
+    .product-item-details p {
+        font-size: 0.775rem;
+    }
+    
+    .product-item-actions .btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 /* Pulsing Sync status dot */
